@@ -17,9 +17,18 @@ from ai_processor import (MODELS, DEFAULT_MODEL, estimate_cost,
 st.set_page_config(page_title="LeadFlow", page_icon="🚀", layout="wide")
 init_db()
 
+from styles import inject, badge, SEGMENT_BADGE
+inject()
+
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
-st.sidebar.title("🚀 LeadFlow")
-page = st.sidebar.radio("Раздел", [
+st.sidebar.markdown("""
+<div style="padding:0.5rem 0 1rem 0">
+  <div style="font-size:1.15rem;font-weight:700;color:#111827;">🚀 LeadFlow</div>
+  <div style="font-size:0.75rem;color:#6B7280;margin-top:2px;">AI реактивация лидов</div>
+</div>
+""", unsafe_allow_html=True)
+
+page = st.sidebar.radio("", [
     "📊 Дашборд",
     "🔄 Синхронизация",
     "🤖 AI Анализ",
@@ -28,18 +37,20 @@ page = st.sidebar.radio("Раздел", [
     "📈 Аналитика",
     "🪙 Токены и расходы",
     "🔑 Настройки",
-])
+], label_visibility="collapsed")
 
-# Active model in sidebar
 current_model = get_setting("selected_model", DEFAULT_MODEL)
 model_info = MODELS.get(current_model, {})
-st.sidebar.divider()
-st.sidebar.caption(f"Модель: **{model_info.get('label', current_model)}**")
-st.sidebar.caption(f"${model_info.get('input_price', 0):.2f} / ${model_info.get('output_price', 0):.2f} за 1M tok")
 
 total = get_token_usage_total()
-if total.get("cost_usd"):
-    st.sidebar.caption(f"Потрачено всего: **${total['cost_usd']:.4f}** (~{total['cost_usd']*500:.0f} ₸)")
+st.sidebar.divider()
+st.sidebar.markdown(f"""
+<div style="font-size:0.78rem;color:#6B7280;line-height:1.8">
+  <div>🤖 <b>{model_info.get('label', current_model)}</b></div>
+  <div style="color:#9CA3AF">${model_info.get('input_price',0):.2f} / ${model_info.get('output_price',0):.2f} за 1M</div>
+  {"<div style='margin-top:6px;color:#7C3AED;font-weight:600'>💸 " + f"${total['cost_usd']:.4f} (~{total['cost_usd']*500:.0f} ₸)" + "</div>" if total.get("cost_usd") else ""}
+</div>
+""", unsafe_allow_html=True)
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 SEGMENT_EMOJI = {"hot": "🔥", "warm": "🌤️", "cold": "🧊", None: "❓"}
@@ -56,7 +67,7 @@ def leads_to_df(leads):
 
 # ═══════════════════════════════════════════════════════════════════════════════
 if page == "📊 Дашборд":
-    st.title("📊 Дашборд лидов")
+    st.markdown('<div class="lf-page-title">Дашборд лидов</div><div class="lf-page-subtitle">Обзор базы и статус рассылок</div>', unsafe_allow_html=True)
 
     all_leads = get_leads()
     df = leads_to_df(all_leads)
@@ -65,22 +76,51 @@ if page == "📊 Дашборд":
         st.info("Нет данных. Перейди в **Синхронизация** чтобы загрузить лиды.")
         st.stop()
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Всего лидов", len(df))
-    col2.metric("🔥 Горячих", len(df[df.ai_segment == "hot"]) if "ai_segment" in df else 0)
-    col3.metric("🌤️ Тёплых", len(df[df.ai_segment == "warm"]) if "ai_segment" in df else 0)
-    col4.metric("🧊 Холодных", len(df[df.ai_segment == "cold"]) if "ai_segment" in df else 0)
-    col5.metric("📤 Отправлено", len(df[df.message_sent == 1]) if "message_sent" in df else 0)
+    # KPI карточки
+    n_total   = len(df)
+    n_hot     = len(df[df.ai_segment == "hot"])  if "ai_segment"    in df else 0
+    n_warm    = len(df[df.ai_segment == "warm"]) if "ai_segment"    in df else 0
+    n_cold    = len(df[df.ai_segment == "cold"]) if "ai_segment"    in df else 0
+    n_sent    = len(df[df.message_sent == 1])    if "message_sent"  in df else 0
+    n_replied = len([l for l in all_leads if l.get("replied_at")])
 
-    st.divider()
+    st.markdown(f"""
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:1.5rem">
+      <div class="lf-card" style="text-align:center;padding:1rem">
+        <div style="font-size:1.8rem;font-weight:700;color:#111827">{n_total:,}</div>
+        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">Всего лидов</div>
+      </div>
+      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #EF4444">
+        <div style="font-size:1.8rem;font-weight:700;color:#EF4444">{n_hot:,}</div>
+        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">🔥 Горячих</div>
+      </div>
+      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #F59E0B">
+        <div style="font-size:1.8rem;font-weight:700;color:#F59E0B">{n_warm:,}</div>
+        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">🌤 Тёплых</div>
+      </div>
+      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #6B7280">
+        <div style="font-size:1.8rem;font-weight:700;color:#6B7280">{n_cold:,}</div>
+        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">🧊 Холодных</div>
+      </div>
+      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #7C3AED">
+        <div style="font-size:1.8rem;font-weight:700;color:#7C3AED">{n_sent:,}</div>
+        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">📤 Отправлено</div>
+      </div>
+      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #10B981">
+        <div style="font-size:1.8rem;font-weight:700;color:#10B981">{n_replied:,}</div>
+        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">💬 Ответили</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
+    # Фильтры
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
         seg_filter = st.multiselect("Сегмент", ["hot", "warm", "cold"], default=["hot", "warm", "cold"])
     with col_f2:
         sent_filter = st.selectbox("Статус рассылки", ["Все", "Не отправлено", "Отправлено"])
     with col_f3:
-        search = st.text_input("Поиск по имени/телефону")
+        search = st.text_input("🔍 Поиск по имени / телефону")
 
     filtered = df.copy()
     if seg_filter and "ai_segment" in filtered:
@@ -97,7 +137,8 @@ if page == "📊 Дашборд":
         )
         filtered = filtered[mask]
 
-    st.caption(f"Показано: {len(filtered)} лидов")
+    st.markdown(f'<div style="color:#6B7280;font-size:0.85rem;margin:0.5rem 0">Найдено: <b>{len(filtered)}</b> лидов</div>', unsafe_allow_html=True)
+
     display_cols = ["id", "name", "contact_name", "contact_phone", "stage_name",
                     "ai_segment", "ai_score", "message_sent", "message_status"]
     avail = [c for c in display_cols if c in filtered.columns]
@@ -109,31 +150,51 @@ if page == "📊 Дашборд":
                 "ai_segment": "Сегмент", "ai_score": "Скор",
                 "message_sent": "Отправлено", "message_status": "Статус"
             }),
-            use_container_width=True, height=450
+            use_container_width=True, height=420
         )
 
+    # Детали лида
     st.divider()
-    st.subheader("Детали лида")
     lead_ids = filtered["id"].tolist() if not filtered.empty else []
     if lead_ids:
-        selected_id = st.selectbox("Выбери лид", lead_ids,
+        selected_id = st.selectbox("Выбери лид для детального просмотра", lead_ids,
                                     format_func=lambda x: f"#{x} — {filtered[filtered.id==x].iloc[0]['name']}")
         row = filtered[filtered.id == selected_id].iloc[0]
-        c1, c2 = st.columns(2)
-        with c1:
-            st.write(f"**Лид:** {row['name']}")
-            st.write(f"**Контакт:** {row.get('contact_name','')} | {row.get('contact_phone','')}")
-            st.write(f"**Этап:** {row.get('stage_name','')} ({row.get('pipeline_name','')})")
-            st.write(f"**Теги:** {row.get('tags','—')}")
-        with c2:
-            seg = row.get("ai_segment")
-            st.write(f"**Сегмент:** {SEGMENT_EMOJI.get(seg,'❓')} {seg or 'Не проанализирован'}")
-            st.write(f"**Скор:** {row.get('ai_score','—')}/100")
-            st.write(f"**Причина:** {row.get('ai_reason','—')}")
+        seg = row.get("ai_segment")
+        seg_color = {"hot":"#EF4444","warm":"#F59E0B","cold":"#6B7280"}.get(seg,"#E5E7EB")
+        seg_badge = SEGMENT_BADGE.get(seg, badge("Не проанализирован","gray"))
+
+        st.markdown(f"""
+        <div class="lf-card" style="border-top:3px solid {seg_color}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">
+            <div>
+              <div style="font-size:1.1rem;font-weight:600;color:#111827">{row['name']}</div>
+              <div style="color:#6B7280;font-size:0.875rem;margin-top:2px">
+                {row.get('contact_name','')} · {row.get('contact_phone','')}
+              </div>
+            </div>
+            <div>{seg_badge} &nbsp; <span style="font-size:0.85rem;color:#7C3AED;font-weight:600">{row.get('ai_score','—')}/100</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:0.875rem">
+            <div><span style="color:#6B7280">Воронка:</span> {row.get('pipeline_name','—')}</div>
+            <div><span style="color:#6B7280">Этап:</span> {row.get('stage_name','—')}</div>
+            <div><span style="color:#6B7280">Теги:</span> {row.get('tags','—') or '—'}</div>
+            <div><span style="color:#6B7280">Статус:</span> {row.get('message_status','Не отправлено') or 'Не отправлено'}</div>
+          </div>
+          {"<div style='margin-top:1rem;padding:0.75rem;background:#F5F3FF;border-radius:8px;font-size:0.875rem;color:#374151'><b style='color:#7C3AED'>Причина:</b> " + str(row.get('ai_reason','')) + "</div>" if row.get('ai_reason') else ""}
+        </div>
+        """, unsafe_allow_html=True)
+
         if row.get("ai_message"):
-            st.info(f"**Сообщение:**\n{row['ai_message']}")
+            st.markdown(f"""
+            <div class="lf-card" style="background:#F0FDF4;border-color:#BBF7D0">
+              <div style="font-size:0.75rem;font-weight:600;color:#16A34A;text-transform:uppercase;margin-bottom:6px">💬 Сгенерированное сообщение</div>
+              <div style="color:#166534;font-size:0.9rem;line-height:1.6">{row['ai_message']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
         if row.get("notes"):
-            with st.expander("Примечания"):
+            with st.expander("📝 Примечания"):
                 st.text(row["notes"])
 
 
