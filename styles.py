@@ -44,12 +44,30 @@ CSS = """
 [data-testid="stSidebar"] .stCaption,
 [data-testid="stSidebar"] small { color: #6B6B8A !important; }
 
-/* Кнопка скрытия сайдбара — всегда видна */
+/* Кнопка скрытия сайдбара */
 [data-testid="stSidebarCollapseButton"] {
     background: #2D2D3F !important;
     border-radius: 0 8px 8px 0 !important;
 }
 [data-testid="stSidebarCollapseButton"] svg { color: #FFFFFF !important; }
+
+/* Кнопка раскрытия сайдбара (когда сайдбар скрыт) */
+[data-testid="collapsedControl"] {
+    background: #1E1E2E !important;
+    border-radius: 0 8px 8px 0 !important;
+    color: #FFFFFF !important;
+    display: flex !important;
+    width: 2rem !important;
+    height: 2.5rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: fixed !important;
+    top: 1rem !important;
+    left: 0 !important;
+    z-index: 9999 !important;
+    cursor: pointer !important;
+}
+[data-testid="collapsedControl"] svg { fill: #FFFFFF !important; color: #FFFFFF !important; }
 
 /* ── Заголовки ────────────────────────────────────────────────────────── */
 h1 { font-size: 1.6rem !important; font-weight: 700 !important; color: #111827 !important; margin-bottom: 0.25rem !important; }
