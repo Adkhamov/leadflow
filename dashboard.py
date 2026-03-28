@@ -14,7 +14,7 @@ from ai_processor import (MODELS, DEFAULT_MODEL, estimate_cost,
                           DROP_REASON_LABELS, DROP_STAGE_LABELS,
                           RETURN_POTENTIAL_LABELS, APPROACH_LABELS)
 
-st.set_page_config(page_title="LeadFlow", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="LeadFlow", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 init_db()
 
 from styles import inject, badge, SEGMENT_BADGE
