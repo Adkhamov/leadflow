@@ -14,7 +14,7 @@ from ai_processor import (MODELS, DEFAULT_MODEL, estimate_cost,
                           DROP_REASON_LABELS, DROP_STAGE_LABELS,
                           RETURN_POTENTIAL_LABELS, APPROACH_LABELS)
 
-st.set_page_config(page_title="LeadFlow", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="LeadFlow", layout="wide", initial_sidebar_state="expanded")
 init_db()
 
 from styles import inject, badge, SEGMENT_BADGE
@@ -22,9 +22,14 @@ inject()
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
 st.sidebar.markdown("""
-<div style="padding:0.5rem 0 1rem 0">
-  <div style="font-size:1.15rem;font-weight:700;color:#111827;">🚀 LeadFlow</div>
-  <div style="font-size:0.75rem;color:#6B7280;margin-top:2px;">AI реактивация лидов</div>
+<div style="padding:1.1rem 1rem 0.75rem 1rem;border-bottom:1px solid #E3E8EF;margin-bottom:0.5rem">
+  <div style="display:flex;align-items:center;gap:8px">
+    <div style="width:28px;height:28px;background:#635BFF;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px">⚡</div>
+    <div>
+      <div style="font-size:0.95rem;font-weight:700;color:#0A2540;line-height:1.1">LeadFlow</div>
+      <div style="font-size:0.68rem;color:#8898AA;font-weight:500">AI реактивация</div>
+    </div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -45,10 +50,10 @@ model_info = MODELS.get(current_model, {})
 total = get_token_usage_total()
 st.sidebar.divider()
 st.sidebar.markdown(f"""
-<div style="font-size:0.78rem;color:#6B7280;line-height:1.8">
-  <div>🤖 <b>{model_info.get('label', current_model)}</b></div>
-  <div style="color:#9CA3AF">${model_info.get('input_price',0):.2f} / ${model_info.get('output_price',0):.2f} за 1M</div>
-  {"<div style='margin-top:6px;color:#7C3AED;font-weight:600'>💸 " + f"${total['cost_usd']:.4f} (~{total['cost_usd']*500:.0f} ₸)" + "</div>" if total.get("cost_usd") else ""}
+<div style="padding:0 10px;font-size:0.75rem;color:#8898AA;line-height:1.9">
+  <div style="font-weight:600;color:#425466">{model_info.get('label', current_model)}</div>
+  <div>${model_info.get('input_price',0):.2f} / ${model_info.get('output_price',0):.2f} за 1M</div>
+  {"<div style='color:#635BFF;font-weight:600;margin-top:2px'>$" + f"{total['cost_usd']:.4f} · {total['cost_usd']*500:.0f} ₸" + "</div>" if total.get("cost_usd") else ""}
 </div>
 """, unsafe_allow_html=True)
 
@@ -85,30 +90,30 @@ if page == "📊 Дашборд":
     n_replied = len([l for l in all_leads if l.get("replied_at")])
 
     st.markdown(f"""
-    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:1.5rem">
-      <div class="lf-card" style="text-align:center;padding:1rem">
-        <div style="font-size:1.8rem;font-weight:700;color:#111827">{n_total:,}</div>
-        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">Всего лидов</div>
+    <div class="lf-kpi-grid">
+      <div class="lf-kpi">
+        <div class="lf-kpi-value">{n_total:,}</div>
+        <div class="lf-kpi-label">Всего лидов</div>
       </div>
-      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #EF4444">
-        <div style="font-size:1.8rem;font-weight:700;color:#EF4444">{n_hot:,}</div>
-        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">🔥 Горячих</div>
+      <div class="lf-kpi" style="border-top:3px solid #C0152A">
+        <div class="lf-kpi-value" style="color:#C0152A">{n_hot:,}</div>
+        <div class="lf-kpi-label">🔥 Горячих</div>
       </div>
-      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #F59E0B">
-        <div style="font-size:1.8rem;font-weight:700;color:#F59E0B">{n_warm:,}</div>
-        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">🌤 Тёплых</div>
+      <div class="lf-kpi" style="border-top:3px solid #946500">
+        <div class="lf-kpi-value" style="color:#946500">{n_warm:,}</div>
+        <div class="lf-kpi-label">🌤 Тёплых</div>
       </div>
-      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #6B7280">
-        <div style="font-size:1.8rem;font-weight:700;color:#6B7280">{n_cold:,}</div>
-        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">🧊 Холодных</div>
+      <div class="lf-kpi" style="border-top:3px solid #8898AA">
+        <div class="lf-kpi-value" style="color:#8898AA">{n_cold:,}</div>
+        <div class="lf-kpi-label">🧊 Холодных</div>
       </div>
-      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #7C3AED">
-        <div style="font-size:1.8rem;font-weight:700;color:#7C3AED">{n_sent:,}</div>
-        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">📤 Отправлено</div>
+      <div class="lf-kpi" style="border-top:3px solid #635BFF">
+        <div class="lf-kpi-value" style="color:#635BFF">{n_sent:,}</div>
+        <div class="lf-kpi-label">📤 Отправлено</div>
       </div>
-      <div class="lf-card" style="text-align:center;padding:1rem;border-top:3px solid #10B981">
-        <div style="font-size:1.8rem;font-weight:700;color:#10B981">{n_replied:,}</div>
-        <div style="font-size:0.75rem;color:#6B7280;text-transform:uppercase;margin-top:4px">💬 Ответили</div>
+      <div class="lf-kpi" style="border-top:3px solid #0D7A40">
+        <div class="lf-kpi-value" style="color:#0D7A40">{n_replied:,}</div>
+        <div class="lf-kpi-label">💬 Ответили</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -161,35 +166,35 @@ if page == "📊 Дашборд":
                                     format_func=lambda x: f"#{x} — {filtered[filtered.id==x].iloc[0]['name']}")
         row = filtered[filtered.id == selected_id].iloc[0]
         seg = row.get("ai_segment")
-        seg_color = {"hot":"#EF4444","warm":"#F59E0B","cold":"#6B7280"}.get(seg,"#E5E7EB")
+        seg_color = {"hot":"#C0152A","warm":"#946500","cold":"#8898AA"}.get(seg,"#E3E8EF")
         seg_badge = SEGMENT_BADGE.get(seg, badge("Не проанализирован","gray"))
 
         st.markdown(f"""
         <div class="lf-card" style="border-top:3px solid {seg_color}">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem">
             <div>
-              <div style="font-size:1.1rem;font-weight:600;color:#111827">{row['name']}</div>
-              <div style="color:#6B7280;font-size:0.875rem;margin-top:2px">
+              <div style="font-size:1.05rem;font-weight:600;color:#0A2540">{row['name']}</div>
+              <div style="color:#8898AA;font-size:0.84rem;margin-top:2px">
                 {row.get('contact_name','')} · {row.get('contact_phone','')}
               </div>
             </div>
-            <div>{seg_badge} &nbsp; <span style="font-size:0.85rem;color:#7C3AED;font-weight:600">{row.get('ai_score','—')}/100</span></div>
+            <div style="display:flex;align-items:center;gap:8px">{seg_badge} <span style="font-size:0.84rem;color:#635BFF;font-weight:600;background:#EEF2FF;padding:2px 8px;border-radius:4px">{row.get('ai_score','—')}/100</span></div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;font-size:0.875rem">
-            <div><span style="color:#6B7280">Воронка:</span> {row.get('pipeline_name','—')}</div>
-            <div><span style="color:#6B7280">Этап:</span> {row.get('stage_name','—')}</div>
-            <div><span style="color:#6B7280">Теги:</span> {row.get('tags','—') or '—'}</div>
-            <div><span style="color:#6B7280">Статус:</span> {row.get('message_status','Не отправлено') or 'Не отправлено'}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.84rem">
+            <div><span style="color:#8898AA;font-weight:500">Воронка</span><br><span style="color:#0A2540">{row.get('pipeline_name','—')}</span></div>
+            <div><span style="color:#8898AA;font-weight:500">Этап</span><br><span style="color:#0A2540">{row.get('stage_name','—')}</span></div>
+            <div><span style="color:#8898AA;font-weight:500">Теги</span><br><span style="color:#0A2540">{row.get('tags','—') or '—'}</span></div>
+            <div><span style="color:#8898AA;font-weight:500">Статус</span><br><span style="color:#0A2540">{row.get('message_status','Не отправлено') or 'Не отправлено'}</span></div>
           </div>
-          {"<div style='margin-top:1rem;padding:0.75rem;background:#F5F3FF;border-radius:8px;font-size:0.875rem;color:#374151'><b style='color:#7C3AED'>Причина:</b> " + str(row.get('ai_reason','')) + "</div>" if row.get('ai_reason') else ""}
+          {"<div style='margin-top:1rem;padding:0.75rem;background:#EEF2FF;border-radius:6px;font-size:0.84rem;color:#425466'><span style='color:#635BFF;font-weight:600'>Причина:</span> " + str(row.get('ai_reason','')) + "</div>" if row.get('ai_reason') else ""}
         </div>
         """, unsafe_allow_html=True)
 
         if row.get("ai_message"):
             st.markdown(f"""
-            <div class="lf-card" style="background:#F0FDF4;border-color:#BBF7D0">
-              <div style="font-size:0.75rem;font-weight:600;color:#16A34A;text-transform:uppercase;margin-bottom:6px">💬 Сгенерированное сообщение</div>
-              <div style="color:#166534;font-size:0.9rem;line-height:1.6">{row['ai_message']}</div>
+            <div class="lf-card" style="background:#EDFAF3;border-color:#A7F3D0">
+              <div style="font-size:0.72rem;font-weight:600;color:#0D7A40;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">💬 Сгенерированное сообщение</div>
+              <div style="color:#065F46;font-size:0.875rem;line-height:1.65">{row['ai_message']}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -200,7 +205,7 @@ if page == "📊 Дашборд":
 
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "🔄 Синхронизация":
-    st.title("🔄 Синхронизация с AmoCRM")
+    st.markdown('<div class="lf-page-title">Синхронизация</div><div class="lf-page-subtitle">Подключение AmoCRM и загрузка лидов</div>', unsafe_allow_html=True)
 
     last_sync = get_setting("last_sync")
     if last_sync:
@@ -260,29 +265,32 @@ elif page == "🔄 Синхронизация":
 
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "🤖 AI Анализ":
-    st.title("🤖 AI Сегментация и генерация сообщений")
+    st.markdown('<div class="lf-page-title">AI Анализ</div><div class="lf-page-subtitle">Сегментация лидов и генерация персональных сообщений</div>', unsafe_allow_html=True)
 
     # Model selector
-    st.subheader("Выбор модели")
+    st.markdown("#### Выбор модели")
     cols = st.columns(len(MODELS))
     for i, (mid, info) in enumerate(MODELS.items()):
         with cols[i]:
             is_current = mid == current_model
-            border = "2px solid #00cc00" if is_current else "1px solid #333"
-            provider_icon = "🟣" if info["provider"] == "anthropic" else "🟢"
+            border_style = "border:2px solid #635BFF" if is_current else "border:1px solid #E3E8EF"
+            bg = "background:#EEF2FF" if is_current else "background:#FFFFFF"
+            provider_color = "#635BFF" if info["provider"] == "anthropic" else "#10B981"
+            provider_label = "Anthropic" if info["provider"] == "anthropic" else "OpenAI"
             st.markdown(f"""
-<div style="border:{border};border-radius:8px;padding:10px;margin:2px;min-height:160px">
-<b>{provider_icon} {info['label']}</b><br>
-<small style="color:#aaa">{info['desc']}</small><br><br>
-<small>📥 ${info['input_price']}/1M &nbsp; 📤 ${info['output_price']}/1M</small><br>
-<small style="color:#88cc88">✓ {info['best_for']}</small>
+<div style="{border_style};{bg};border-radius:8px;padding:12px 14px;min-height:150px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+  <div style="font-size:0.65rem;font-weight:600;color:{provider_color};text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">{provider_label}</div>
+  <div style="font-weight:600;color:#0A2540;font-size:0.9rem;margin-bottom:4px">{info['label']}</div>
+  <div style="font-size:0.75rem;color:#8898AA;margin-bottom:8px">{info['desc']}</div>
+  <div style="font-size:0.72rem;color:#425466">${info['input_price']} / ${info['output_price']} за 1M</div>
+  <div style="font-size:0.72rem;color:#0D7A40;margin-top:4px">✓ {info['best_for']}</div>
 </div>""", unsafe_allow_html=True)
             if not is_current:
                 if st.button("Выбрать", key=f"sel_{mid}"):
                     set_setting("selected_model", mid)
                     st.rerun()
             else:
-                st.success("✅ Активна")
+                st.markdown('<div style="font-size:0.78rem;color:#635BFF;font-weight:600;padding:4px 0">✓ Активна</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -419,8 +427,7 @@ elif page == "🤖 AI Анализ":
 
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "💡 Гипотезы кампаний":
-    st.title("💡 Гипотезы кампаний реактивации")
-    st.caption("AI анализирует все сегментированные лиды и предлагает сегменты с оценкой вероятности ответа")
+    st.markdown('<div class="lf-page-title">Гипотезы кампаний</div><div class="lf-page-subtitle">AI группирует лиды в сегменты с оценкой вероятности ответа</div>', unsafe_allow_html=True)
 
     all_leads = get_leads()
     all_pipelines = sorted(set(l.get("pipeline_name","") for l in all_leads if l.get("pipeline_name")))
@@ -552,7 +559,7 @@ elif page == "💡 Гипотезы кампаний":
 
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "📤 Рассылка":
-    st.title("📤 Рассылка через WhatsApp (Wazzup)")
+    st.markdown('<div class="lf-page-title">Рассылка</div><div class="lf-page-subtitle">Массовая отправка сообщений через Wazzup</div>', unsafe_allow_html=True)
 
     try:
         from wazzup_client import get_channels, channel_label, get_active_channel_id
@@ -619,7 +626,7 @@ elif page == "📤 Рассылка":
 
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "📈 Аналитика":
-    st.title("📈 Аналитика рассылок")
+    st.markdown('<div class="lf-page-title">Аналитика</div><div class="lf-page-subtitle">Эффективность рассылок и воронка доставки</div>', unsafe_allow_html=True)
 
     from database import get_message_analytics
     import json as _json
@@ -777,7 +784,7 @@ https://xxxx.ngrok.io/webhook
 
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "🪙 Токены и расходы":
-    st.title("🪙 Расходы на AI")
+    st.markdown('<div class="lf-page-title">Токены и расходы</div><div class="lf-page-subtitle">Использование AI моделей и стоимость</div>', unsafe_allow_html=True)
 
     total = get_token_usage_total()
     col1, col2, col3, col4 = st.columns(4)
@@ -841,7 +848,7 @@ elif page == "🪙 Токены и расходы":
 
 # ═══════════════════════════════════════════════════════════════════════════════
 elif page == "🔑 Настройки":
-    st.title("🔑 Настройки")
+    st.markdown('<div class="lf-page-title">Настройки</div><div class="lf-page-subtitle">API ключи, каналы и подключения</div>', unsafe_allow_html=True)
 
     st.subheader("API ключи")
     col1, col2 = st.columns(2)
