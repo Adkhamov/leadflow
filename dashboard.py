@@ -28,7 +28,7 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-page = st.sidebar.radio("", [
+page = st.sidebar.radio("Навигация", [
     "📊 Дашборд",
     "🔄 Синхронизация",
     "🤖 AI Анализ",
