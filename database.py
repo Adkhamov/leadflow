@@ -2,7 +2,9 @@ import sqlite3
 import json
 from datetime import datetime
 
-DB_PATH = "leadflow.db"
+import os
+# На Railway данные хранятся в /data (persistent volume), локально — рядом с файлом
+DB_PATH = os.path.join(os.getenv("RAILWAY_VOLUME_MOUNT_PATH", ""), "leadflow.db")
 
 
 def get_conn():
