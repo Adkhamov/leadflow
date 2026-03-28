@@ -44,30 +44,9 @@ CSS = """
 [data-testid="stSidebar"] .stCaption,
 [data-testid="stSidebar"] small { color: #6B6B8A !important; }
 
-/* Кнопка скрытия сайдбара */
-[data-testid="stSidebarCollapseButton"] {
-    background: #2D2D3F !important;
-    border-radius: 0 8px 8px 0 !important;
-}
-[data-testid="stSidebarCollapseButton"] svg { color: #FFFFFF !important; }
-
-/* Кнопка раскрытия сайдбара (когда сайдбар скрыт) */
-[data-testid="collapsedControl"] {
-    background: #1E1E2E !important;
-    border-radius: 0 8px 8px 0 !important;
-    color: #FFFFFF !important;
-    display: flex !important;
-    width: 2rem !important;
-    height: 2.5rem !important;
-    align-items: center !important;
-    justify-content: center !important;
-    position: fixed !important;
-    top: 1rem !important;
-    left: 0 !important;
-    z-index: 9999 !important;
-    cursor: pointer !important;
-}
-[data-testid="collapsedControl"] svg { fill: #FFFFFF !important; color: #FFFFFF !important; }
+/* Скрыть кнопку сворачивания сайдбара */
+[data-testid="stSidebarCollapseButton"] { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 
 /* ── Заголовки ────────────────────────────────────────────────────────── */
 h1 { font-size: 1.6rem !important; font-weight: 700 !important; color: #111827 !important; margin-bottom: 0.25rem !important; }
@@ -201,9 +180,41 @@ footer { display: none !important; }
 """
 
 
+EXPAND_JS = """
+<script>
+(function() {
+    function tryExpand() {
+        // Ищем кнопку раскрытия (когда сайдбар закрыт)
+        var btn = document.querySelector('[data-testid="collapsedControl"]');
+        if (btn) { btn.click(); return true; }
+        // Fallback: ищем кнопку с aria-expanded=false рядом с сайдбаром
+        var sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (!sidebar) {
+            var allBtns = document.querySelectorAll('button');
+            for (var i = 0; i < allBtns.length; i++) {
+                if (allBtns[i].getAttribute('aria-expanded') === 'false') {
+                    allBtns[i].click(); return true;
+                }
+            }
+        }
+        return false;
+    }
+    // Пробуем несколько раз пока Streamlit грузится
+    [300, 800, 1500, 3000].forEach(function(ms) {
+        setTimeout(function() {
+            var sidebar = document.querySelector('[data-testid="stSidebar"]');
+            if (!sidebar) tryExpand();
+        }, ms);
+    });
+})();
+</script>
+"""
+
+
 def inject():
     import streamlit as st
     st.markdown(CSS, unsafe_allow_html=True)
+    st.markdown(EXPAND_JS, unsafe_allow_html=True)
 
 
 def badge(text: str, color: str = "gray") -> str:
