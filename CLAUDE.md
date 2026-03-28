@@ -2,64 +2,64 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Running the app
+## Запуск
 
 ```bash
-# Main dashboard
+# Основной дашборд
 streamlit run dashboard.py
 
-# Webhook server (for Wazzup delivery/read/reply statuses) — separate terminal
-python webhook_server.py  # port 8502
+# Вебхук-сервер для статусов Wazzup (доставлено/прочитано/ответили) — отдельный терминал
+python webhook_server.py  # порт 8502
 
-# One-time sync of all leads from AmoCRM
+# Разовая синхронизация лидов из AmoCRM
 python sync.py
 ```
 
-## Architecture
+## Архитектура
 
-Single-file-per-concern Python app. No frameworks beyond Streamlit + FastAPI.
+Один файл на одну зону ответственности. Без фреймворков кроме Streamlit + FastAPI.
 
-**Data flow:**
+**Поток данных:**
 ```
 AmoCRM API → sync.py → SQLite (leadflow.db) → ai_processor.py (Claude/OpenAI) → dashboard.py
                                                                                  ↑
 Wazzup API ←────────────────────────────── webhook_server.py ──────────────────┘
 ```
 
-**Key files:**
-- `dashboard.py` — entire Streamlit UI, all pages in one file with `elif page ==` blocks
-- `database.py` — all SQLite access; `init_db()` is idempotent, call it on startup
-- `ai_processor.py` — model catalog (`MODELS` dict), `process_lead()` for segmentation + message, `generate_hypotheses()` for campaign hypotheses
-- `amo_client.py` — AmoCRM REST API; uses batch fetching for contacts/notes to avoid N+1
-- `wazzup_client.py` — Wazzup messaging API; active channel read from DB settings via `get_active_channel_id()`
-- `sync.py` — bulk sync: fetches all leads, batch-fetches contacts + notes, saves `last_activity_at`
-- `webhook_server.py` — FastAPI app receiving Wazzup status webhooks (delivered/read/replied)
+**Ключевые файлы:**
+- `dashboard.py` — весь Streamlit UI, все страницы в одном файле через блоки `elif page ==`
+- `database.py` — весь доступ к SQLite; `init_db()` идемпотентен, вызывается при старте
+- `ai_processor.py` — каталог моделей (`MODELS`), `process_lead()` для сегментации + генерации сообщения, `generate_hypotheses()` для гипотез кампаний
+- `amo_client.py` — REST API AmoCRM; батч-загрузка контактов и заметок чтобы избежать N+1 запросов
+- `wazzup_client.py` — API рассылки Wazzup; активный канал читается из настроек БД через `get_active_channel_id()`
+- `sync.py` — полная синхронизация: все лиды, батч-загрузка контактов + заметок, сохранение `last_activity_at`
+- `webhook_server.py` — FastAPI приложение, принимает статусы от Wazzup (доставлено/прочитано/ответили)
 
-## Database
+## База данных
 
-SQLite at `leadflow.db` (gitignored). Schema lives in `database.py:init_db()`.
+SQLite в файле `leadflow.db` (в .gitignore). Схема находится в `database.py:init_db()`.
 
-Key tables: `leads`, `token_usage`, `hypotheses`, `message_events`, `settings`.
+Основные таблицы: `leads`, `token_usage`, `hypotheses`, `message_events`, `settings`.
 
-Settings (user preferences) are stored in the `settings` table via `get_setting()`/`set_setting()`. This includes `amo_access_token`, `wazzup_channel_id`, `selected_model`.
+Настройки пользователя хранятся в таблице `settings` через `get_setting()`/`set_setting()` — включая `amo_access_token`, `wazzup_channel_id`, `selected_model`.
 
-When adding columns to existing deployments, use `ALTER TABLE ... ADD COLUMN` with try/except — SQLite doesn't support `IF NOT EXISTS` for columns.
+При добавлении колонок в существующую БД использовать `ALTER TABLE ... ADD COLUMN` с try/except — SQLite не поддерживает `IF NOT EXISTS` для колонок.
 
-## AI segmentation
+## AI сегментация
 
-Each lead is analyzed with 7 criteria (segment, score, drop_reason_category, drop_stage_type, return_potential, engagement_level, best_approach_type, best_channel). Results saved via `save_ai_result_full()`.
+Каждый лид анализируется по 7 критериям: segment, score, drop_reason_category, drop_stage_type, return_potential, engagement_level, best_approach_type, best_channel. Результат сохраняется через `save_ai_result_full()`.
 
-Hypothesis IDs from Claude ("A","B","C") are prefixed with a sanitized pipeline name before saving to avoid PRIMARY KEY conflicts across pipelines.
+ID гипотез от Claude ("A","B","C") prefixируются именем воронки перед сохранением — чтобы избежать конфликтов PRIMARY KEY между разными воронками.
 
-`_parse_json()` includes truncation recovery — if the model hits max_tokens mid-JSON, it finds the last complete `}` and closes the array.
+`_parse_json()` умеет восстанавливать обрезанный JSON — если модель упёрлась в max_tokens посередине ответа, находит последний полный `}` и закрывает массив.
 
-## Environment
+## Переменные окружения
 
-All secrets in `.env` (gitignored). See `.env.example` for required keys. On Streamlit Cloud, secrets go in the Secrets panel as TOML.
+Все секреты в `.env` (в .gitignore). Пример в `.env.example`. На Streamlit Cloud — в панели Secrets в формате TOML.
 
-Required: `AMO_SUBDOMAIN`, `AMO_ACCESS_TOKEN`, `WAZZUP_API_KEY`, `ANTHROPIC_API_KEY`.
-Optional: `OPENAI_API_KEY` (for GPT models), `WAZZUP_CHANNEL_ID` (overrides DB setting).
+Обязательные: `AMO_SUBDOMAIN`, `AMO_ACCESS_TOKEN`, `WAZZUP_API_KEY`, `ANTHROPIC_API_KEY`.
+Опциональные: `OPENAI_API_KEY` (для GPT моделей), `WAZZUP_CHANNEL_ID` (переопределяет настройку из БД).
 
-## Supported models
+## Поддерживаемые модели
 
-Defined in `ai_processor.MODELS`: `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`. Active model stored in `settings.selected_model`.
+Определены в `ai_processor.MODELS`: `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-haiku-4-5`, `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`. Активная модель хранится в `settings.selected_model`.
