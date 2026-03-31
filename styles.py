@@ -20,6 +20,8 @@ CSS = """
 
 /* Пункты меню */
 [data-testid="stSidebar"] .stRadio > div { gap: 1px; }
+[data-testid="stSidebar"] .stRadio label input[type="radio"] { display: none !important; }
+[data-testid="stSidebar"] .stRadio label p { margin: 0 !important; }
 [data-testid="stSidebar"] .stRadio label {
     display: block !important;
     padding: 8px 16px !important;
