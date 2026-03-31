@@ -788,10 +788,10 @@ elif page == "🪙 Токены и расходы":
 
     total = get_token_usage_total()
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Всего запросов", total.get("calls", 0))
-    col2.metric("Вх. токенов", f"{total.get('input_tokens', 0):,}")
-    col3.metric("Исх. токенов", f"{total.get('output_tokens', 0):,}")
-    col4.metric("Потрачено", f"${total.get('cost_usd', 0):.4f} (~{(total.get('cost_usd',0)*500):.0f} ₸)")
+    col1.metric("Всего запросов", total.get("calls") or 0)
+    col2.metric("Вх. токенов", f"{total.get('input_tokens') or 0:,}")
+    col3.metric("Исх. токенов", f"{total.get('output_tokens') or 0:,}")
+    col4.metric("Потрачено", f"${(total.get('cost_usd') or 0):.4f} (~{((total.get('cost_usd') or 0)*500):.0f} ₸)")
 
     st.divider()
 
