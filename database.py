@@ -109,6 +109,23 @@ def init_db():
             output_tokens INTEGER,
             cost_usd REAL
         );
+
+        CREATE TABLE IF NOT EXISTS wheel_prizes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT NOT NULL,
+            weight REAL DEFAULT 1,
+            active INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS wheel_spins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_name TEXT,
+            prize_id INTEGER,
+            prize_label TEXT,
+            spun_at TEXT
+        );
     """)
     conn.commit()
     conn.close()
@@ -432,3 +449,65 @@ def set_setting(key: str, value: str):
     conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)", (key, value))
     conn.commit()
     conn.close()
+
+
+def get_wheel_prizes(active_only: bool = False) -> list:
+    conn = get_conn()
+    query = "SELECT * FROM wheel_prizes"
+    if active_only:
+        query += " WHERE active=1"
+    query += " ORDER BY sort_order, id"
+    rows = conn.execute(query).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def add_wheel_prize(label: str, weight: float = 1.0) -> int:
+    conn = get_conn()
+    max_order = conn.execute("SELECT COALESCE(MAX(sort_order), -1) FROM wheel_prizes").fetchone()[0]
+    cur = conn.execute("""
+        INSERT INTO wheel_prizes (label, weight, active, sort_order, created_at)
+        VALUES (?,?,1,?,?)
+    """, (label, weight, max_order + 1, datetime.now().isoformat()))
+    conn.commit()
+    prize_id = cur.lastrowid
+    conn.close()
+    return prize_id
+
+
+def update_wheel_prize(prize_id: int, label: str = None, weight: float = None, active: int = None):
+    conn = get_conn()
+    if label is not None:
+        conn.execute("UPDATE wheel_prizes SET label=? WHERE id=?", (label, prize_id))
+    if weight is not None:
+        conn.execute("UPDATE wheel_prizes SET weight=? WHERE id=?", (weight, prize_id))
+    if active is not None:
+        conn.execute("UPDATE wheel_prizes SET active=? WHERE id=?", (active, prize_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_wheel_prize(prize_id: int):
+    conn = get_conn()
+    conn.execute("DELETE FROM wheel_prizes WHERE id=?", (prize_id,))
+    conn.commit()
+    conn.close()
+
+
+def record_wheel_spin(employee_name: str, prize_id: int, prize_label: str):
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO wheel_spins (employee_name, prize_id, prize_label, spun_at)
+        VALUES (?,?,?,?)
+    """, (employee_name, prize_id, prize_label, datetime.now().isoformat()))
+    conn.commit()
+    conn.close()
+
+
+def get_wheel_spins(limit: int = 50) -> list:
+    conn = get_conn()
+    rows = conn.execute("""
+        SELECT * FROM wheel_spins ORDER BY spun_at DESC LIMIT ?
+    """, (limit,)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

@@ -1,6 +1,9 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import os
+import json
+import random
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -9,7 +12,9 @@ load_dotenv()
 from database import (init_db, get_leads, save_ai_result, save_ai_result_full,
                       mark_message_sent, set_setting, get_setting,
                       get_token_usage, get_token_usage_total,
-                      save_hypotheses, get_hypotheses, get_leads_inactive)
+                      save_hypotheses, get_hypotheses, get_leads_inactive,
+                      get_wheel_prizes, add_wheel_prize, update_wheel_prize,
+                      delete_wheel_prize, record_wheel_spin, get_wheel_spins)
 from ai_processor import (MODELS, DEFAULT_MODEL, estimate_cost,
                           DROP_REASON_LABELS, DROP_STAGE_LABELS,
                           RETURN_POTENTIAL_LABELS, APPROACH_LABELS)
@@ -41,6 +46,7 @@ page = st.sidebar.radio("Навигация", [
     "📤 Рассылка",
     "📈 Аналитика",
     "🪙 Токены и расходы",
+    "🎡 Колесо удачи",
     "🔑 Настройки",
 ], label_visibility="collapsed")
 
@@ -68,6 +74,102 @@ def leads_to_df(leads):
     if "created_at" in df.columns:
         df["created_dt"] = pd.to_datetime(df["created_at"], unit="s", errors="coerce")
     return df
+
+
+WHEEL_COLORS = ["#635BFF", "#00C2A8", "#FF6B6B", "#FFB020", "#0A2540",
+                "#4F9DFF", "#FF8FB1", "#22C55E", "#A78BFA", "#F97316"]
+
+WHEEL_HTML_TEMPLATE = """
+<div style="display:flex;flex-direction:column;align-items:center;font-family:Inter,-apple-system,sans-serif;">
+  <div style="position:relative;width:__SIZE__px;height:__SIZE__px;">
+    <div style="position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:0;height:0;
+                border-left:14px solid transparent;border-right:14px solid transparent;
+                border-top:26px solid #0A2540;z-index:10;"></div>
+    <canvas id="wheel" width="__SIZE__" height="__SIZE__"
+            style="border-radius:50%;box-shadow:0 8px 30px rgba(10,37,64,0.25);
+                   transition:transform 4.5s cubic-bezier(0.17,0.67,0.16,0.99);transform:rotate(0deg);"></canvas>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:64px;
+                background:#635BFF;border-radius:50%;display:flex;align-items:center;justify-content:center;
+                color:#fff;font-weight:700;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,0.2);z-index:5;">Spin</div>
+  </div>
+</div>
+<script>
+const data = __DATA_JSON__;
+const size = __SIZE__;
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const cx = size / 2, cy = size / 2, r = size / 2 - 4;
+const n = data.labels.length;
+const totalWeight = data.weights.reduce((a, b) => a + b, 0) || 1;
+
+let bounds = [];
+let acc = 0;
+for (let i = 0; i < n; i++) {
+    const start = acc / totalWeight * 360;
+    acc += data.weights[i];
+    const end = acc / totalWeight * 360;
+    bounds.push([start, end]);
+}
+
+function drawWheel() {
+    ctx.clearRect(0, 0, size, size);
+    for (let i = 0; i < n; i++) {
+        const [start, end] = bounds[i];
+        const startRad = (start - 90) * Math.PI / 180;
+        const endRad = (end - 90) * Math.PI / 180;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, startRad, endRad);
+        ctx.closePath();
+        ctx.fillStyle = data.colors[i];
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const mid = (start + end) / 2;
+        const midRad = (mid - 90) * Math.PI / 180;
+        ctx.save();
+        ctx.translate(cx + Math.cos(midRad) * r * 0.62, cy + Math.sin(midRad) * r * 0.62);
+        ctx.rotate(midRad + Math.PI / 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '600 15px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 3;
+        ctx.fillText(data.labels[i], 0, 0);
+        ctx.restore();
+    }
+}
+drawWheel();
+
+if (data.winner !== null && data.winner !== undefined) {
+    const [start, end] = bounds[data.winner];
+    const pad = Math.min(4, (end - start) / 4);
+    const landing = start + pad + Math.random() * Math.max((end - start) - pad * 2, 0.01);
+    const spins = 5 + Math.floor(Math.random() * 3);
+    const rotation = spins * 360 + (360 - landing);
+    requestAnimationFrame(() => {
+        canvas.style.transform = `rotate(${rotation}deg)`;
+    });
+}
+</script>
+"""
+
+
+def build_wheel_html(prizes, winner_index=None, size=440):
+    """Render a weighted spinning wheel. `prizes`: list of dicts with 'label'/'weight'.
+    `winner_index` selects the segment to land on (already chosen server-side by weight)."""
+    data = {
+        "labels": [p["label"] for p in prizes],
+        "weights": [p["weight"] for p in prizes],
+        "colors": [WHEEL_COLORS[i % len(WHEEL_COLORS)] for i in range(len(prizes))],
+        "winner": winner_index,
+    }
+    return (WHEEL_HTML_TEMPLATE
+            .replace("__SIZE__", str(size))
+            .replace("__DATA_JSON__", json.dumps(data, ensure_ascii=False)))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -847,6 +949,57 @@ elif page == "🪙 Токены и расходы":
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+elif page == "🎡 Колесо удачи":
+    st.markdown('<div class="lf-page-title">Колесо удачи</div><div class="lf-page-subtitle">Для сотрудников — крути колесо и получай приз</div>', unsafe_allow_html=True)
+
+    wheel_prizes = get_wheel_prizes(active_only=True)
+
+    if not wheel_prizes:
+        st.warning("Нет активных призов. Добавь варианты в разделе «Настройки → Колесо удачи».")
+    else:
+        # Guard against stale winner index if prizes were edited after a spin
+        if st.session_state.get("wheel_winner_idx", None) is not None:
+            if st.session_state["wheel_winner_idx"] >= len(wheel_prizes):
+                st.session_state["wheel_winner_idx"] = None
+
+        col_wheel, col_side = st.columns([2, 1])
+
+        with col_side:
+            employee_name = st.text_input("Имя сотрудника", value=st.session_state.get("wheel_employee_name", ""))
+            st.session_state["wheel_employee_name"] = employee_name
+
+            if st.button("🎯 Крутить колесо", type="primary", use_container_width=True):
+                weights = [p["weight"] for p in wheel_prizes]
+                winner_idx = random.choices(range(len(wheel_prizes)), weights=weights, k=1)[0]
+                winner = wheel_prizes[winner_idx]
+                record_wheel_spin(employee_name.strip() or "Без имени", winner["id"], winner["label"])
+                st.session_state["wheel_winner_idx"] = winner_idx
+                st.session_state["wheel_winner_label"] = winner["label"]
+
+            st.markdown("**Вероятности:**")
+            total_w = sum(p["weight"] for p in wheel_prizes) or 1
+            for p in wheel_prizes:
+                pct = p["weight"] / total_w * 100
+                st.caption(f"{p['label']} — {pct:.1f}%")
+
+        with col_wheel:
+            winner_idx = st.session_state.get("wheel_winner_idx")
+            html = build_wheel_html(wheel_prizes, winner_idx)
+            components.html(html, height=560)
+            if winner_idx is not None:
+                st.success(f"🎉 {st.session_state.get('wheel_employee_name') or 'Сотрудник'} выиграл(а): **{st.session_state.get('wheel_winner_label')}**")
+
+        st.divider()
+        st.subheader("История спинов")
+        spins = get_wheel_spins(limit=30)
+        if spins:
+            df_spins = pd.DataFrame(spins)[["spun_at", "employee_name", "prize_label"]]
+            df_spins.columns = ["Дата", "Сотрудник", "Приз"]
+            st.dataframe(df_spins, use_container_width=True, hide_index=True)
+        else:
+            st.caption("Пока нет истории спинов")
+
+# ═══════════════════════════════════════════════════════════════════════════════
 elif page == "🔑 Настройки":
     st.markdown('<div class="lf-page-title">Настройки</div><div class="lf-page-subtitle">API ключи, каналы и подключения</div>', unsafe_allow_html=True)
 
@@ -948,6 +1101,50 @@ elif page == "🔑 Настройки":
                     st.info(f"Текущий активный канал: **{channel_label(active_ch)}**")
     except Exception as e:
         st.error(f"Ошибка загрузки каналов: {e}")
+
+    st.divider()
+    st.subheader("🎡 Колесо удачи — призы")
+    st.caption("Варианты и веса для колеса удачи. Чем больше вес, тем выше вероятность выпадения приза.")
+
+    wheel_prizes_admin = get_wheel_prizes()
+    if wheel_prizes_admin:
+        total_w = sum(p["weight"] for p in wheel_prizes_admin if p["active"]) or 1
+        h1, h2, h3, h4, h5 = st.columns([3, 1.5, 1, 1, 0.6])
+        h1.markdown("**Приз**")
+        h2.markdown("**Вес**")
+        h3.markdown("**Шанс**")
+        h4.markdown("**Активен**")
+        for p in wheel_prizes_admin:
+            c1, c2, c3, c4, c5 = st.columns([3, 1.5, 1, 1, 0.6])
+            with c1:
+                new_label = st.text_input("Приз", value=p["label"], key=f"wp_label_{p['id']}", label_visibility="collapsed")
+            with c2:
+                new_weight = st.number_input("Вес", value=float(p["weight"]), min_value=0.1, step=0.5,
+                                              key=f"wp_weight_{p['id']}", label_visibility="collapsed")
+            with c3:
+                pct = (p["weight"] / total_w * 100) if p["active"] else 0
+                st.caption(f"{pct:.1f}%")
+            with c4:
+                new_active = st.checkbox("Активен", value=bool(p["active"]), key=f"wp_active_{p['id']}",
+                                          label_visibility="collapsed")
+            with c5:
+                if st.button("🗑️", key=f"wp_del_{p['id']}"):
+                    delete_wheel_prize(p["id"])
+                    st.rerun()
+            if new_label != p["label"] or new_weight != p["weight"] or int(new_active) != p["active"]:
+                update_wheel_prize(p["id"], label=new_label, weight=new_weight, active=int(new_active))
+                st.rerun()
+    else:
+        st.caption("Призов пока нет — добавь первый ниже")
+
+    with st.form("add_wheel_prize_form", clear_on_submit=True):
+        fc1, fc2, fc3 = st.columns([3, 1.5, 1])
+        new_prize_label = fc1.text_input("Новый приз", label_visibility="collapsed", placeholder="Например: Скидка 10%")
+        new_prize_weight = fc2.number_input("Вес", value=1.0, min_value=0.1, step=0.5, label_visibility="collapsed")
+        submitted = fc3.form_submit_button("➕ Добавить")
+        if submitted and new_prize_label.strip():
+            add_wheel_prize(new_prize_label.strip(), new_prize_weight)
+            st.rerun()
 
     st.divider()
     st.subheader("Текущий .env")
